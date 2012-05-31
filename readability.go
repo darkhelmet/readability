@@ -40,7 +40,7 @@ func (e *Endpoint) buildUrl(uri string) string {
 func (e *Endpoint) Extract(uri string) (*Response, error) {
     resp, err := http.Get(e.buildUrl(uri))
     if err != nil {
-        return nil, fmt.Errorf("readability: http error: %s", err)
+        return nil, fmt.Errorf("readability: HTTP error: %s", err)
     }
     defer resp.Body.Close()
 
@@ -48,7 +48,7 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
     decoder := json.NewDecoder(resp.Body)
     err = decoder.Decode(&rresp)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("readability: JSON error: %s", err)
     }
     return &rresp, nil
 }
