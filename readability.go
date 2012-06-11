@@ -44,6 +44,10 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
     }
     defer resp.Body.Close()
 
+    if resp.StatusCode != 200 {
+        return nil, fmt.Errorf("readability: HTTP error %d", resp.StatusCode)
+    }
+
     var rresp Response
     decoder := json.NewDecoder(resp.Body)
     err = decoder.Decode(&rresp)
