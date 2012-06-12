@@ -13,7 +13,7 @@ const (
 
 type Response struct {
     Domain        string  `json:"domain"`
-    Author        string  `json:"author"`
+    Author        *string  `json:"author"`
     URL           URL     `json:"url"`
     ShortURL      URL     `json:"short_url"`
     Title         string  `json:"title"`
