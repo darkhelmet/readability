@@ -13,14 +13,14 @@ const (
 
 type Response struct {
     Domain        string  `json:"domain"`
-    Author        *string  `json:"author"`
+    Author        *string `json:"author"`
     URL           URL     `json:"url"`
     ShortURL      URL     `json:"short_url"`
     Title         string  `json:"title"`
     TotalPages    int     `json:"total_pages"`
     WordCount     int     `json:"word_count"`
     Content       string  `json:"content"`
-    DatePublished Time    `json:"date_published"`
+    DatePublished *Time   `json:"date_published"`
     NextPageId    *string `json:"next_page_id"`
     RenderedPages int     `json:"rendered_pages"`
 }
