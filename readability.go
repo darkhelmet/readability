@@ -3,8 +3,11 @@ package readability
 import (
     "encoding/json"
     "fmt"
+    "io"
+    "io/ioutil"
     "net/http"
     "net/url"
+    "strings"
 )
 
 const (
@@ -37,6 +40,16 @@ func (e *Endpoint) buildUrl(uri string) string {
     return fmt.Sprintf("%s?url=%s&token=%s", Parser, url.QueryEscape(uri), url.QueryEscape(e.token))
 }
 
+func parseResponse(uri string, r io.Reader) (*Response, error) {
+    var rresp Response
+    decoder := json.NewDecoder(r)
+    err := decoder.Decode(&rresp)
+    if err != nil {
+        return nil, fmt.Errorf("readability: JSON error (%s): %s", uri, err)
+    }
+    return &rresp, nil
+}
+
 func (e *Endpoint) Extract(uri string) (*Response, error) {
     resp, err := http.Get(e.buildUrl(uri))
     if err != nil {
@@ -48,11 +61,20 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
         return nil, fmt.Errorf("readability: HTTP error (%s): %d", uri, resp.StatusCode)
     }
 
-    var rresp Response
-    decoder := json.NewDecoder(resp.Body)
-    err = decoder.Decode(&rresp)
+    return parseResponse(uri, resp.Body)
+}
+
+func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
+    resp, err := http.Post(e.buildUrl(uri), "application/x-www-form-urlencoded", strings.NewReader(url.QueryEscape(content)))
     if err != nil {
-        return nil, fmt.Errorf("readability: JSON error (%s): %s", uri, err)
+        return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
-    return &rresp, nil
+    defer resp.Body.Close()
+
+    if resp.StatusCode != 200 {
+        body, _ := ioutil.ReadAll(resp.Body)
+        return nil, fmt.Errorf("readability: HTTP error (%s): %d, %s", uri, resp.StatusCode, body)
+    }
+
+    return parseResponse(uri, resp.Body)
 }
