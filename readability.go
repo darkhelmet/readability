@@ -2,6 +2,7 @@ package readability
 
 import (
     "encoding/json"
+    "errors"
     "fmt"
     "io"
     "io/ioutil"
@@ -12,6 +13,10 @@ import (
 
 const (
     Parser = "https://readability.com/api/content/v1/parser"
+)
+
+var (
+    ErrTransient = errors.New("readability: transient error, probably a 5xx, maybe try again")
 )
 
 type Response struct {
@@ -57,8 +62,16 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        return nil, fmt.Errorf("readability: HTTP error (%s): %d", uri, resp.StatusCode)
+    switch {
+    case resp.StatusCode >= 500:
+        // Eat and throw away the body
+        ioutil.ReadAll(resp.Body)
+        return nil, ErrTransient
+    case resp.StatusCode == 200:
+        // All is well
+    default:
+        body, _ := ioutil.ReadAll(resp.Body)
+        return nil, fmt.Errorf("readability: HTTP error (%s): %d, %s", uri, resp.StatusCode, body)
     }
 
     return parseResponse(uri, resp.Body)
@@ -71,7 +84,14 @@ func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
+    switch {
+    case resp.StatusCode >= 500:
+        // Eat and throw away the body
+        ioutil.ReadAll(resp.Body)
+        return nil, ErrTransient
+    case resp.StatusCode == 200:
+        // All is well
+    default:
         body, _ := ioutil.ReadAll(resp.Body)
         return nil, fmt.Errorf("readability: HTTP error (%s): %d, %s", uri, resp.StatusCode, body)
     }
