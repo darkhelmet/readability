@@ -65,7 +65,7 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
     switch {
     case resp.StatusCode >= 500:
         // Eat and throw away the body
-        ioutil.ReadAll(resp.Body)
+        io.Copy(ioutil.Discard, resp.Body)
         return nil, ErrTransient
     case resp.StatusCode == 200:
         // All is well
