@@ -5,10 +5,10 @@ import (
     "errors"
     "fmt"
     "io"
-    "io/ioutil"
+    "log"
     "net/http"
+    "net/http/httputil"
     "net/url"
-    "strings"
 )
 
 const (
@@ -34,15 +34,12 @@ type Response struct {
 }
 
 type Endpoint struct {
-    token string
+    token  string
+    logger *log.Logger
 }
 
-func New(token string) *Endpoint {
-    return &Endpoint{token}
-}
-
-func (e *Endpoint) buildUrl(uri string) string {
-    return fmt.Sprintf("%s?url=%s&token=%s", Parser, url.QueryEscape(uri), url.QueryEscape(e.token))
+func New(token string, logger *log.Logger) *Endpoint {
+    return &Endpoint{token, logger}
 }
 
 func parseResponse(uri string, r io.Reader) (*Response, error) {
@@ -56,44 +53,45 @@ func parseResponse(uri string, r io.Reader) (*Response, error) {
 }
 
 func (e *Endpoint) Extract(uri string) (*Response, error) {
-    resp, err := http.Get(e.buildUrl(uri))
+    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}})
     if err != nil {
         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
     defer resp.Body.Close()
-
-    switch {
-    case resp.StatusCode >= 500:
-        // Eat and throw away the body
-        io.Copy(ioutil.Discard, resp.Body)
-        return nil, ErrTransient
-    case resp.StatusCode == 200:
-        // All is well
-    default:
-        body, _ := ioutil.ReadAll(resp.Body)
-        return nil, fmt.Errorf("readability: HTTP error (%s): %d, %s", uri, resp.StatusCode, body)
-    }
-
-    return parseResponse(uri, resp.Body)
+    return e.handleResponse(uri, resp)
 }
 
 func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
-    resp, err := http.Post(e.buildUrl(uri), "application/x-www-form-urlencoded", strings.NewReader(url.QueryEscape(content)))
+    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}, "content": {content}})
     if err != nil {
         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
     defer resp.Body.Close()
+    return e.handleResponse(uri, resp)
+}
 
+func (e *Endpoint) handleResponse(uri string, resp *http.Response) (*Response, error) {
     switch {
     case resp.StatusCode >= 500:
-        io.Copy(ioutil.Discard, resp.Body)
+        e.dumpResponse(resp)
         return nil, ErrTransient
     case resp.StatusCode == 200:
-        // All is well
+        return parseResponse(uri, resp.Body)
     default:
-        body, _ := ioutil.ReadAll(resp.Body)
-        return nil, fmt.Errorf("readability: HTTP error (%s): %d, %s", uri, resp.StatusCode, body)
+        e.dumpResponse(resp)
+        return nil, fmt.Errorf("readability: HTTP error (%s): %d", uri, resp.StatusCode)
+    }
+}
+
+func (e *Endpoint) dumpResponse(resp *http.Response) {
+    if e.logger == nil {
+        return
     }
 
-    return parseResponse(uri, resp.Body)
+    dump, err := httputil.DumpResponse(resp, true)
+    if err != nil {
+        e.logger.Printf("readability: failed dumping response: %s", err)
+    } else {
+        e.logger.Printf("%s", dump)
+    }
 }
