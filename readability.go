@@ -9,6 +9,7 @@ import (
     "net/http"
     "net/http/httputil"
     "net/url"
+    "strings"
 )
 
 const (
@@ -62,7 +63,8 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
 }
 
 func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
-    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}, "content": {content}})
+    return e.Extract(uri)
+    resp, err := http.Post(Parser, "application/x-www-form-urlencoded", strings.NewReader(url.QueryEscape(content)))
     if err != nil {
         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
@@ -72,6 +74,8 @@ func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
 
 func (e *Endpoint) handleResponse(uri string, resp *http.Response) (*Response, error) {
     switch {
+    case resp.StatusCode == 504:
+        return nil, fmt.Errorf("readability: Failed to fetch %s", uri)
     case resp.StatusCode >= 500:
         e.dumpResponse(resp)
         return nil, ErrTransient
