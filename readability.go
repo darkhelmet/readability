@@ -9,7 +9,6 @@ import (
     "net/http"
     "net/http/httputil"
     "net/url"
-    "strings"
 )
 
 const (
@@ -23,8 +22,8 @@ var (
 type Response struct {
     Domain        string  `json:"domain"`
     Author        *string `json:"author"`
-    URL           URL     `json:"url"`
-    ShortURL      URL     `json:"short_url"`
+    URL           string  `json:"url"`
+    ShortURL      string  `json:"short_url"`
     Title         string  `json:"title"`
     TotalPages    int     `json:"total_pages"`
     WordCount     int     `json:"word_count"`
@@ -63,8 +62,7 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
 }
 
 func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
-    return e.Extract(uri)
-    resp, err := http.Post(Parser, "application/x-www-form-urlencoded", strings.NewReader(url.QueryEscape(content)))
+    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}, "content": {content}})
     if err != nil {
         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
@@ -75,6 +73,7 @@ func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
 func (e *Endpoint) handleResponse(uri string, resp *http.Response) (*Response, error) {
     switch {
     case resp.StatusCode == 504:
+        e.dumpResponse(resp)
         return nil, fmt.Errorf("readability: Failed to fetch %s", uri)
     case resp.StatusCode >= 500:
         e.dumpResponse(resp)
