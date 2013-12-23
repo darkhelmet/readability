@@ -13,7 +13,7 @@ import (
 
 var (
     ErrTransient = errors.New("readability: transient error, probably a 5xx, maybe try again")
-    Parser       = "https://readability.com/api/content/v1/parser"
+    Parser       = "https://www.readability.com/api/content/v1/parser"
 )
 
 type Response struct {
@@ -50,7 +50,7 @@ func parseResponse(uri string, r io.Reader) (*Response, error) {
 }
 
 func (e *Endpoint) Extract(uri string) (*Response, error) {
-    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}})
+    resp, err := http.Get(fmt.Sprintf("%s?%s", Parser, url.Values{"token": {e.token}, "url": {uri}}.Encode()))
     if err != nil {
         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
     }
@@ -58,14 +58,14 @@ func (e *Endpoint) Extract(uri string) (*Response, error) {
     return e.handleResponse(uri, resp)
 }
 
-func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
-    resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}, "content": {content}})
-    if err != nil {
-        return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
-    }
-    defer resp.Body.Close()
-    return e.handleResponse(uri, resp)
-}
+// func (e *Endpoint) ExtractWithContent(uri, content string) (*Response, error) {
+//     resp, err := http.PostForm(Parser, url.Values{"token": {e.token}, "url": {uri}, "content": {content}})
+//     if err != nil {
+//         return nil, fmt.Errorf("readability: HTTP error (%s): %s", uri, err)
+//     }
+//     defer resp.Body.Close()
+//     return e.handleResponse(uri, resp)
+// }
 
 func (e *Endpoint) handleResponse(uri string, resp *http.Response) (*Response, error) {
     switch {
