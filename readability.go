@@ -11,12 +11,9 @@ import (
     "net/url"
 )
 
-const (
-    Parser = "https://readability.com/api/content/v1/parser"
-)
-
 var (
     ErrTransient = errors.New("readability: transient error, probably a 5xx, maybe try again")
+    Parser       = "https://readability.com/api/content/v1/parser"
 )
 
 type Response struct {
